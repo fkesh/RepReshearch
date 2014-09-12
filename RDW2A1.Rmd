@@ -1,0 +1,208 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output:
+html_document:
+keep_md: true
+---
+
+### Loading and preprocessing the data
+```{r Loading,   results="hide", warning=FALSE}
+library(chron)
+library(lattice)
+setwd("C:/Users/Farhad/Documents/University/Coursera/Data Science  John Hopkins/4 - Reproducible Research/Homeworks")
+
+Sys.time()
+fURL="http://d396qusza40orc.cloudfront.net/repdata/data/activity.zip"
+f<-read.csv(fURL,header=FALSE)
+temp<-tempfile()
+download.file(fURL,temp)
+theData<-read.csv(unz(temp,"activity.csv"))
+unlink(temp)
+
+```
+
+```{r some exploration,  echo=FALSE,  results="hide", warning=FALSE}
+names(theData)
+nrow(theData)
+theData[1:9,]
+unique(theData[,2])
+
+```
+
+
+```{r clean data, echo=FALSE, results="hide", warning=FALSE}
+data<-theData
+#data<-na.omit(theData[,c(2,3)])
+
+data[,2]<-as.Date(data[,2])
+data$day<-as.numeric(format(data[,2],"%d"))
+data$month<-format(data[2],"%b")
+dev.off()
+windows()
+```
+
+
+###Steps taken each day
+
+```{r Plot histogram, echo=FALSE, warning=FALSE}
+
+octData<-subset(data,data$month=="Oct")
+novData<-subset(data,data$month=="Nov")
+
+#Plots
+plotDataOct <- tapply(octData$steps, octData$day,  FUN = sum)
+barplot(plotDataOct,col="red",xaxt="n",yaxt="n",ylab="",xlab="",space=1)
+axis(side = 1, at = c(1:31), line=1, tick = FALSE, labels = FALSE,xlim=31,ylim=(0:16000))
+#abline(lsfit(1:31, plotDataOct),col="red")
+par(new=TRUE)
+plotDataNov <- tapply(novData$steps, novData$day,  FUN = sum)
+barplot(plotDataNov,col="blue",ylab= "Steps",pch=16,xlab="Days of the month",main="Sum of steps per day for October and November",space=2)
+axis(side=1,at=c(0,100))
+#abline(lsfit(1:30, plotDataNov),col="blue")
+legend("bottomright",pch=c(1,16),col=c("red" ," blue"),legend=c("October","November"),cex=1,bg="white")
+```
+
+
+
+####Mean and Median of steps per day per month
+
+```{r Mean & Meadian, echo=FALSE, results="hide", warning=FALSE}
+#Remove zero steps values
+NZoctData<-octData[octData$steps>0,]
+NZnovData<-novData[novData$steps>0,]
+
+NZoctData<-na.omit(NZoctData)
+NZnovData<-na.omit(NZnovData)
+
+#Get Oct values
+MeanOct <- tapply(NZoctData$steps, NZoctData$day,  FUN = mean)
+MedianOct <- tapply(NZoctData$steps, NZoctData$day,  FUN = median)
+#Get Nov values
+MeanNov <- tapply(NZnovData$steps, NZnovData$day,  FUN = mean)
+MedianNov <- tapply(NZnovData$steps, NZnovData$day,  FUN = median)
+
+
+OctSummary<-cbind(MeanOct,MedianOct)
+NovSummary<-cbind(MeanNov,MedianNov)
+```
+
+```{r show mean and median, echo=FALSE,  warning=FALSE}
+OctSummary
+NovSummary
+
+
+
+``` 
+
+
+
+###Daily activity pattern (5 min intervals)   
+
+```{r prepare data for plot, echo=FALSE, results="hide", warning=FALSE}
+onData<-subset(data,data$month =="Oct" | data$month=="Nov")
+
+agData<-aggregate(steps ~ interval, onData, FUN=sum)
+
+```
+
+```{r plot time interval, echo=FALSE,  warning=FALSE}
+with(agData , plot(interval,steps,type="ln"))
+
+```
+
+
+####The maximum daily activity pattern   
+```{r max steps, echo=FALSE, results="hide", warning=FALSE}
+m<-max(agData$steps)
+maxInt<-agData[agData$steps==m,1]
+lmInt<-nchar(maxInt)
+intM<-substr(maxInt,1,lmInt-2)
+intS<-substr(maxInt,lmInt-1,lmInt)
+tInt<- paste(intM , intS,"00",sep=":")
+timeInt<-chron(times=tInt)
+
+```
+The maximum daily activity is `r maxInt` at `r timeInt`  
+
+
+###Addressing missing Values    
+`r nrow(theData) - nrow(na.omit(theData))` rows have "na" values.
+
+
+```{r replace missing, echo=FALSE, results="hide", warning=FALSE}
+
+ndata<-theData
+
+#set all na values to 0
+ndata$steps[is.na(ndata$steps)]<-0
+
+#get an array of dates   
+ad<-unique(theData$date)
+
+#loop through dates
+for (i in 1:length(ad)){
+        #get the mean of all steps for a date
+        mx<- mean(ndata[ndata$date==ad[i] & ndata$steps>0 ,1])
+        #
+        if (is.na(mx)) {
+                mx<-mean(theData$steps,na.rm=TRUE)
+
+        }
+        ndata[ndata$date==as.character(ad[i]) & ndata$steps==0,1]<-  mx
+        
+
+}
+
+```
+
+
+```{r assign a mean to dates with mean equal to na, echo=FALSE, results="hide", warning=FALSE }
+ndata[,2]<-as.Date(ndata[,2])
+ndata$day<-as.numeric(format(ndata[,2],"%d"))
+```
+####Plot of 'Step' mean values with no missing value  
+```{rplot mean , echo=FALSE,  warning=FALSE}
+
+#Plots
+plotData <- tapply(ndata$steps, ndata$day,  FUN = mean)
+barplot(plotData,col="red",,ylab= "Steps",pch=16,xlab="Days of the month",main="Mean Steps per day")
+axis(side = 1, at = c(1:31), line=1, tick = FALSE, labels = FALSE,xlim=31,ylim=(0:16000))
+
+```
+
+####Plot of 'Step' mean values with  no missing value in 5 min intervale   
+```{r median , echo=FALSE,  warning=FALSE}
+plotData <- tapply(ndata$steps, ndata$day,  FUN = median)
+barplot(plotData,col="red",,ylab= "Steps",pch=16,xlab="Days of the month",main="Median Steps per day")
+axis(side = 1, at = c(1:31), line=1, tick = FALSE, labels = FALSE,xlim=31,ylim=(0:16000))
+```
+
+
+###Plot of 'Step' mean values for weekdays in 5 min intervale
+
+```{r create weekdays factor, echo=FALSE,  warning=FALSE}
+
+#data$dayOfWeek<-weekdays(as.Date(data$date))
+fDays<-c("Monday","Tuesday","Wednesday","Thursday","Friday")
+fEnd<-c("Saturday","Sunday")
+
+
+ndata$weekdays[weekdays(as.Date(ndata$date)) %in% fDays]<-"weekday"
+ndata$weekdays[!(weekdays(as.Date(ndata$date)) %in% fDays)]<-"weekend"
+
+dayData<-ndata[ndata$weekdays=="weekday",]
+endData<-ndata[ndata$weekdays=="weekend",]
+
+
+#Plots weekdays
+par(mfrow=c(1,2))
+plotData <- tapply(dayData$steps, dayData$day,  FUN = mean)
+barplot(plotData,col="red",,ylab= "Steps",pch=16,xlab="Time interval",main="Mean Steps per Weekdays")
+axis(side = 1, at = c(1:31), line=1, tick = FALSE, labels = FALSE,xlim=31,ylim=(0:16000))
+#plot weekends
+plotData <- tapply(endData$steps, endData$day,  FUN = mean)
+barplot(plotData,col="red",,ylab= "Steps",pch=16,xlab="Time intervale",main="Mean Steps per weekends")
+axis(side = 1, at = c(1:31), line=1, tick = FALSE, labels = FALSE,xlim=31,ylim=(0:16000))
+
+
+```
